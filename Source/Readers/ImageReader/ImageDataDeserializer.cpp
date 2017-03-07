@@ -32,7 +32,7 @@ public:
     virtual void GetSequence(size_t sequenceIndex, std::vector<SequenceDataPtr>& result) override
     {
         assert(sequenceIndex == 0 && sequenceIndex == m_description.m_indexInChunk);
-        UNUSED(sequenceIndex);
+        CNTK_UNUSED(sequenceIndex);
 
         auto cvImage = m_deserializer.ReadImage(m_description.m_key.m_sequence, m_description.m_path, m_deserializer.m_grayscale);
         if (!cvImage.data)
@@ -275,9 +275,9 @@ void ImageDataDeserializer::RegisterByteReader(size_t seqId, const std::string& 
     readerSequences[containerPath][itemPath].push_back(seqId);
     m_readers[seqId] = reader;
 #else
-    UNUSED(seqId);
-    UNUSED(knownReaders);
-    UNUSED(readerSequences);
+    CNTK_UNUSED(seqId);
+    CNTK_UNUSED(knownReaders);
+    CNTK_UNUSED(readerSequences);
     RuntimeError("The code is built without zip container support. Only plain image files are supported.");
 #endif
 }

@@ -372,9 +372,9 @@ protected:
 
     void MaxUnpoolingCore(const Mat& out, const Mat& poolIn, Mat& in) override
     {
-        UNUSED(out);
-        UNUSED(poolIn);
-        UNUSED(in);
+        CNTK_UNUSED(out);
+        CNTK_UNUSED(poolIn);
+        CNTK_UNUSED(in);
         // Not implemented but potentially can make a fallback to reference engine.
         LogicError("MaxUnpooling is not implemented for cuDNN engine.");
     }

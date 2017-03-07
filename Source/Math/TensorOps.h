@@ -216,7 +216,7 @@ DefUnaryOp(ExponentialLinearUnit, a >= 0 ? a : (exp_(a)-1));
     {                                            \
         return expr;                             \
     }
-//#define DefBinaryOp(op, expr) template<class ElemType> DECL ElemType Op ## op(const ElemType & a, ElemType b, int i = 0) { UNUSED(i); return expr; }
+//#define DefBinaryOp(op, expr) template<class ElemType> DECL ElemType Op ## op(const ElemType & a, ElemType b, int i = 0) { CNTK_UNUSED(i); return expr; }
 DefBinaryOp(CopyIf, a != 0 ? b : 0);
 DefBinaryOp(CopyIfNot, a == 0 ? b : 0);
 DefBinaryOp(Sum, a + b);

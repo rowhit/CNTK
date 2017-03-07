@@ -180,7 +180,7 @@ template<class ElemType>
     // 2-way thread parallelism is sufficient for the memory bound
     // operation of just setting the values of an array.
     const unsigned NUM_THREADS = 2;
-    UNUSED(NUM_THREADS); // in case OMP is turned off.
+    CNTK_UNUSED(NUM_THREADS); // in case OMP is turned off.
 #pragma omp parallel for num_threads(NUM_THREADS)
     for (int layoutSequenceIdx = 0; layoutSequenceIdx < numLayoutSequences; ++layoutSequenceIdx)
     {

@@ -40,7 +40,7 @@ ZipByteReader::ZipPtr ZipByteReader::OpenZip()
         int err = zip_close(z);
         assert(ZIP_ER_OK == err);
 #ifdef NDEBUG
-        UNUSED(err);
+        CNTK_UNUSED(err);
 #endif
     });
 }
@@ -113,7 +113,7 @@ cv::Mat ZipByteReader::Read(size_t seqId, const std::string& path, bool grayscal
                 int err = zip_fclose(f);
                 assert(ZIP_ER_OK == err);
 #ifdef NDEBUG
-                UNUSED(err);
+                CNTK_UNUSED(err);
 #endif
             });
         assert(nullptr != file);

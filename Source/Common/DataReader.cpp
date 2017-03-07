@@ -41,7 +41,7 @@ void DataReaderBase::SetMinibatchLayout(StreamMinibatchInputs& minibatch)
     {
         assert(iter.second.pMBLayout == pMBLayout);
         // TODO: This should be a runtime check, not an assert() that only runs in Debug.
-        UNUSED(iter);
+        CNTK_UNUSED(iter);
     }
 
     CopyMBLayoutTo(pMBLayout);

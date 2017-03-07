@@ -979,7 +979,7 @@ static void Peek(const GPUMatrix<ElemType>& m, const char* which)
     ElemType buf[10000] = { 0 };
     size_t n = min(rows * cols, _countof(buf));
     CUDA_CALL(cudaMemcpy(buf, m.Data(), sizeof(ElemType) * n, cudaMemcpyDeviceToHost));
-    UNUSED(which); UNUSED(rows); UNUSED(cols); sin(1.0f); // set breakpoint here
+    CNTK_UNUSED(which); CNTK_UNUSED(rows); CNTK_UNUSED(cols); sin(1.0f); // set breakpoint here
     //CUDA_CALL(cudaMemcpy(const_cast<ElemType*>(m.Data()), buf, sizeof(ElemType) * n, cudaMemcpyHostToDevice));
 }
 
@@ -2069,9 +2069,9 @@ void GPUMatrix<ElemType>::AssignNCEUnnormalizedEval(const GPUMatrix<ElemType>& a
     assert(GetNumRows() == a.GetNumRows());
     assert(GetNumCols() == b.GetNumRows());
     assert(a.GetNumCols() == b.GetNumRows());
-    UNUSED(a);
-    UNUSED(b);
-    UNUSED(c); // TODO: this function seems like a stub
+    CNTK_UNUSED(a);
+    CNTK_UNUSED(b);
+    CNTK_UNUSED(c); // TODO: this function seems like a stub
     /*
         EnsureAuxMemory();
         int p = 512;

@@ -720,7 +720,7 @@ void CPUMatrix<ElemType>::SetValue(const ElemType v)
         // 2-way thread parallelism is sufficient for the memory bound
         // operation of just setting the values of an array.
         const unsigned SETVALUE_NUM_THREADS = 2;
-        UNUSED(SETVALUE_NUM_THREADS); // in case OMP is turned off.
+        CNTK_UNUSED(SETVALUE_NUM_THREADS); // in case OMP is turned off.
 #pragma omp parallel for num_threads(SETVALUE_NUM_THREADS)
         // four-way unrolling
         for (long i = 0; i < (m & ~3); i += 4)
@@ -4651,7 +4651,7 @@ void CPUMatrix<ElemType>::BatchNormalizationBackward(const CPUMatrix<ElemType>& 
                                                      const CPUMatrix<ElemType>& saveMean, const CPUMatrix<ElemType>& saveInvStdDev,
                                                      CPUMatrix<ElemType>& scaleGrad, CPUMatrix<ElemType>& biasGrad) const
 {
-    UNUSED(in); UNUSED(grad); UNUSED(scale); UNUSED(blendFactor), UNUSED(saveMean); UNUSED(saveInvStdDev); UNUSED(scaleGrad); UNUSED(biasGrad);
+    CNTK_UNUSED(in); CNTK_UNUSED(grad); CNTK_UNUSED(scale); CNTK_UNUSED(blendFactor), CNTK_UNUSED(saveMean); CNTK_UNUSED(saveInvStdDev); CNTK_UNUSED(scaleGrad); CNTK_UNUSED(biasGrad);
     RuntimeError("Batch normalization training on CPU is not yet implemented.");
 }
 

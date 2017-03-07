@@ -30,7 +30,7 @@
 #define ISCLOSE(a, b, threshold) (std::abs(a - b) < threshold) ? true : false
 #define DLCLOSE_SUCCESS 0
 
-#define UNUSED(x) (void)(x) // for variables that are, e.g., only used in _DEBUG builds
+#define CNTK_UNUSED(x) (void)(x) // for variables that are, e.g., only used in _DEBUG builds
 
 #pragma warning(disable : 4702) // disable some incorrect unreachable-code warnings
 

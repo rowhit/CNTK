@@ -2645,7 +2645,7 @@ GPUSparseMatrix<ElemType>& GPUSparseMatrix<ElemType>::AssignElementInverseOf(con
 {
 #if 1
     // Note: This makes no sense because sparse matrices are defined by having lots of zeroes.
-    UNUSED(a); NOT_IMPLEMENTED;
+    CNTK_UNUSED(a); NOT_IMPLEMENTED;
 #else
     SetValue(a);
     return ElementInverse();
@@ -2669,7 +2669,7 @@ GPUSparseMatrix<ElemType>& GPUSparseMatrix<ElemType>::AssignSigmoidOf(const GPUS
 {
 #if 1
     // Note: This makes no sense because sigmoid(0) != 0.
-    UNUSED(a); NOT_IMPLEMENTED;
+    CNTK_UNUSED(a); NOT_IMPLEMENTED;
 #else
     if (this != &a)
         RequireSize(a.GetNumRows(), a.GetNumCols());
@@ -2743,7 +2743,7 @@ GPUSparseMatrix<ElemType>& GPUSparseMatrix<ElemType>::AssignExpOf(const GPUSpars
 {
 #if 1
     // Note: This makes no sense because exp(0) != 0.
-    UNUSED(a); NOT_IMPLEMENTED;
+    CNTK_UNUSED(a); NOT_IMPLEMENTED;
 #else
     if (this != &a)
         RequireSize(a.GetNumRows(), a.GetNumCols());
@@ -2769,7 +2769,7 @@ GPUSparseMatrix<ElemType>& GPUSparseMatrix<ElemType>::AssignLogOf(const GPUSpars
 {
 #if 1
     // Note: This makes no sense because log(0) != 0.
-    UNUSED(a); NOT_IMPLEMENTED;
+    CNTK_UNUSED(a); NOT_IMPLEMENTED;
 #else
     if (this != &a)
         RequireSize(a.GetNumRows(), a.GetNumCols());

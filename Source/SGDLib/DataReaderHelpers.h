@@ -87,7 +87,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
             {
                 assert(iter.second.pMBLayout == pMBLayout);
                 // TODO: This must be a runtime check, not an assert().
-                UNUSED(iter);
+                CNTK_UNUSED(iter);
             }
 
             assert(trainSetDataReader.IsLegacyReader());
@@ -105,7 +105,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
             {
                 assert(iter.second.pMBLayout == pMBLayout);
                 // TODO: This must be a runtime check, not an assert().
-                UNUSED(iter);
+                CNTK_UNUSED(iter);
             }
 
             DecimateMinibatchInPlace<ElemType>(inputMatrices, dataDecimationFactor, 0, pMBLayout);

@@ -98,7 +98,7 @@ CuDnn::ptr_t CuDnn::Instance()
         auto err = cudnnDestroy(*src);
         assert(err == CUDNN_STATUS_SUCCESS);
 #ifdef NDEBUG
-        UNUSED(err);
+        CNTK_UNUSED(err);
 #endif
         delete src;
     });

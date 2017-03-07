@@ -117,14 +117,14 @@ class fixed_vector
     {
         assert(index >= 0 && (size_t) index < n);
 #ifdef NDEBUG
-        UNUSED(index);
+        CNTK_UNUSED(index);
 #endif
     }
     void check(size_t index) const
     {
         assert(index < n);
 #ifdef NDEBUG
-        UNUSED(index);
+        CNTK_UNUSED(index);
 #endif
     }
     // ... TODO: when I make this public, LinearTransform.h acts totally up but I cannot see where it comes from.

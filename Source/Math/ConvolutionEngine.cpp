@@ -20,8 +20,8 @@ void ConvolutionEngine<ElemType>::Forward(const Mat& in, const Mat& kernel, Mat&
     // REVIEW alexeyk: add shape-aware asserts?
     assert(g.KernelShape().GetNumElements() * g.KernelCount() == kernel.GetNumElements());
 #ifdef NDEBUG
-    UNUSED(g);
-    UNUSED(batchSize);
+    CNTK_UNUSED(g);
+    CNTK_UNUSED(batchSize);
 #endif
 
     EnsureCompatible();
@@ -39,8 +39,8 @@ void ConvolutionEngine<ElemType>::BackwardData(const Mat& srcGrad, const Mat& ke
     assert(batchSize == grad.GetNumCols());
     assert(g.KernelShape().GetNumElements() * g.KernelCount() == kernel.GetNumElements());
 #ifdef NDEBUG
-    UNUSED(g);
-    UNUSED(batchSize);
+    CNTK_UNUSED(g);
+    CNTK_UNUSED(batchSize);
 #endif
 
     EnsureCompatible();
@@ -58,8 +58,8 @@ void ConvolutionEngine<ElemType>::BackwardKernel(const Mat& srcGrad, const Mat& 
     assert(batchSize == srcGrad.GetNumCols());
     assert(g.KernelShape().GetNumElements() * g.KernelCount() == kernel.GetNumElements());
 #ifdef NDEBUG
-    UNUSED(g);
-    UNUSED(batchSize);
+    CNTK_UNUSED(g);
+    CNTK_UNUSED(batchSize);
 #endif
 
     EnsureCompatible();
@@ -76,8 +76,8 @@ void ConvolutionEngine<ElemType>::ForwardPooling(const Mat& in, Mat& out)
     size_t batchSize = in.GetNumCols();
     assert(batchSize == out.GetNumCols());
 #ifdef NDEBUG
-    UNUSED(g);
-    UNUSED(batchSize);
+    CNTK_UNUSED(g);
+    CNTK_UNUSED(batchSize);
 #endif
 
     EnsureCompatible();
@@ -98,8 +98,8 @@ void ConvolutionEngine<ElemType>::BackwardPooling(const Mat& out, const Mat& src
     assert(batchSize == in.GetNumCols());
     assert(batchSize == grad.GetNumCols());
 #ifdef NDEBUG
-    UNUSED(g);
-    UNUSED(batchSize);
+    CNTK_UNUSED(g);
+    CNTK_UNUSED(batchSize);
 #endif
 
     EnsureCompatible();
@@ -118,8 +118,8 @@ void ConvolutionEngine<ElemType>::MaxUnpooling(const Mat& out, const Mat& poolIn
     assert(batchSize == out.GetNumCols());
     assert(batchSize == poolIn.GetNumCols());
 #ifdef NDEBUG
-    UNUSED(g);
-    UNUSED(batchSize);
+    CNTK_UNUSED(g);
+    CNTK_UNUSED(batchSize);
 #endif
 
     EnsureCompatible();
@@ -302,7 +302,7 @@ protected:
         size_t maxTempMemSizeInSamples = (m_maxTempMemSizeInSamples == 0 ? batchSize : m_maxTempMemSizeInSamples);
 
         assert(kernel.GetNumCols() == packedInputRows && kernel.GetNumRows() == m_outT.c());
-        UNUSED(packedInputRows);
+        CNTK_UNUSED(packedInputRows);
 
         // GPU and 1-dimensional image
         m_gpuSparseOpt = (m_kernelT.h() == 1 &&
@@ -527,9 +527,9 @@ protected:
 
     void MaxUnpoolingCore(const Mat& out, const Mat& poolIn, Mat& in) override
     {
-        UNUSED(out);
-        UNUSED(poolIn);
-        UNUSED(in);
+        CNTK_UNUSED(out);
+        CNTK_UNUSED(poolIn);
+        CNTK_UNUSED(in);
         // Not implemented but potentially can make a fallback to reference engine.
         LogicError("MaxUnpooling is not implemented for legacy engine.");
     }

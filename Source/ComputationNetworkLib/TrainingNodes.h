@@ -2371,7 +2371,7 @@ public:
 
             bool eval;
             fstream >> eval;
-            UNUSED(eval);
+            CNTK_UNUSED(eval);
             fstream >> m_spatial;
             if (verWritten >= 0x00010004)
                 fstream >> m_normTimeConst;
@@ -2379,7 +2379,7 @@ public:
             {
                 double expAvgFactor;
                 fstream >> expAvgFactor;
-                UNUSED(expAvgFactor); // Used in previous versions, replaced by m_normTimeConst.
+                CNTK_UNUSED(expAvgFactor); // Used in previous versions, replaced by m_normTimeConst.
             }
             if (verWritten >= 0x00010002)
             {

@@ -432,7 +432,7 @@ namespace CNTK
     void LearnerSGD::Update(const Parameter& parameter, const NDArrayViewPtr& gradientValue, 
                             const NDArrayViewPtr& smoothedGradientValue, size_t trainingSampleCount) const
     {
-        UNUSED(smoothedGradientValue);
+        CNTK_UNUSED(smoothedGradientValue);
         const auto& gradientMatrix = GetWritableMatrix<ElementType>(gradientValue);
         const auto& parameterMatrix = GetWritableMatrix<ElementType>(parameter.Value());
         const auto learningRate = ElementType(LearningRate(trainingSampleCount));

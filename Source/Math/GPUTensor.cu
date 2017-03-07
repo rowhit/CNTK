@@ -135,7 +135,7 @@ struct FixedArray<T, 0>
     FixedArray(const VEC& data)
     {
         assert(data.size() == 0);
-        UNUSED(data);
+        CNTK_UNUSED(data);
     }
     FixedArray()
     {
@@ -195,7 +195,7 @@ struct FixedMatrix<T, N, 0>
         assert(data.size() == N);
         for (size_t n = 0; n < N; n++)
             assert(data[n].size() == 0);
-        UNUSED(data);
+        CNTK_UNUSED(data);
     }
     FixedMatrix()
     {

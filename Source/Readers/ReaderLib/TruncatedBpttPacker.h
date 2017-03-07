@@ -51,7 +51,7 @@ private:
 
     virtual MBLayoutPtr CreateMBLayout(const StreamBatch& batch)
     {
-        UNUSED(batch);
+        CNTK_UNUSED(batch);
         NOT_IMPLEMENTED;
     }
 

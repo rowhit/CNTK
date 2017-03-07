@@ -80,7 +80,7 @@ PackerBase::PackerBase(CorpusDescriptorPtr corpus,
     for (size_t i = 0; i < m_outputStreamDescriptions.size(); ++i)
     {
         const auto& stream = m_outputStreamDescriptions[i];
-        UNUSED(stream);
+        CNTK_UNUSED(stream);
 
         // Check the input.
         if(m_inputStreamDescriptions[i]->m_elementType != ElementType::tdouble &&

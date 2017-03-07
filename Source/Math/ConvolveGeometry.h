@@ -471,8 +471,8 @@ public:
         size_t mapCountTotal = mapCount.GetNumElements();
         size_t sizeOut = dimsOut.GetNumElements();
         assert((sizeOut % mapCountTotal) == 0);
-        UNUSED(mapCountTotal);
-        UNUSED(sizeOut);
+        CNTK_UNUSED(mapCountTotal);
+        CNTK_UNUSED(sizeOut);
 
         return dimsOut;
     }
@@ -482,7 +482,7 @@ public:
     static TensorShape ComputeInputShape(const TensorShape& outputShape, const TensorShape& kernelShape, const TensorShape& mapCount, const TensorShape& stride,
                                          const BoolVec& sharing, const BoolVec& autoPad, const TensorShape& lowerPad, const TensorShape& upperPad, bool ceilOutDim = false)
     {
-        UNUSED(ceilOutDim);
+        CNTK_UNUSED(ceilOutDim);
         if (outputShape.GetRank() != kernelShape.GetRank())
             InvalidArgument("Convolution output and kernel tensors must have the same rank.");
         if (mapCount.GetRank() != 1 && outputShape.GetRank() != mapCount.GetRank())

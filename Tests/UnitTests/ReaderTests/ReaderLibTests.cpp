@@ -1142,7 +1142,7 @@ void RunSingleWorker(
 
         counter++; // For debugging if something goes wrong...
     }
-    UNUSED(counter);
+    CNTK_UNUSED(counter);
 }
 
 void RunAllWorkers(

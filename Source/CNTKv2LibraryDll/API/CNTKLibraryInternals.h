@@ -73,7 +73,7 @@ static inline wchar_t* _wcsdup(const wchar_t *s)
 namespace CNTK
 {
 
-#define UNUSED(x) (void)(x) // for variables that are, e.g., only used in _DEBUG builds
+#define CNTK_UNUSED(x) (void)(x) // for variables that are, e.g., only used in _DEBUG builds
 
 #ifdef _MSC_VER
 #define __declspec_noreturn __declspec(noreturn)
