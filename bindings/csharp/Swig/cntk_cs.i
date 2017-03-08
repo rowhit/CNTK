@@ -1,5 +1,4 @@
 %include <arrays_csharp.i>
-// include the unordered_map.i.
 %include "std_unordered_map.i"
 %include "managed_language_base.i"
 

@@ -1,3 +1,4 @@
+%include "std_unordered_map.i"
 %include "managed_language_base.i"
 
 %rename (GetAllDevices) CNTK::DeviceDescriptor::AllDevices;
