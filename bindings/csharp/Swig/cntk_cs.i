@@ -920,6 +920,11 @@
 
 %}
 
+%apply int INPUT[]  { int *colStarts }
+%apply int INPUT[]  { int *rowIndices }
+%apply float INPUT[]  { float *nonZeroValues }
+%apply double INPUT[]  { double *nonZeroValues }
+
 %rename (GetDevice) CNTK::Value::Device;
 %rename (GetShape) CNTK::Value::Shape;
 %rename (_IsSparse) CNTK::Value::IsSparse;
@@ -1119,6 +1124,34 @@
                                                   bool readOnly = false)
     {
         return Create<T>(dimension, batchOfSequences, seqStartFlags, device, readOnly);
+    }
+
+    public static Value CreateSequence<T>(NDShape sequenceShape,
+                                          int[] colStarts, int[] rowIndices, T[] nonZeroValues, uint numNonZeroValues,
+                                          bool sequenceStartFlag,
+                                          DeviceDescriptor device,
+                                          bool readOnly = false)
+    {
+        if (typeof(T).Equals(typeof(float)))
+        {
+            return Value.CreateSequenceFloat(sequenceShape, colStarts, rowIndices, nonZeroValues as float[], numNonZeroValues, sequenceStartFlag, device, readOnly);
+        }
+        else if (typeof(T).Equals(typeof(double)))
+        {
+            return Value.CreateSequenceDouble(sequenceShape, colStarts, rowIndices, nonZeroValues as double[], numNonZeroValues, sequenceStartFlag, device, readOnly);
+        }
+        else
+        {
+            throw new System.ArgumentException("The data type " + typeof(T).ToString() + " is not supported. Only float or double is supported by CNTK.");
+        }
+    }
+
+    public static Value CreateSequence<T>(NDShape sequenceShape,
+                                          int[] colStarts, int[] rowIndices, T[] nonZeroValues, uint numNonZeroValues,
+                                          DeviceDescriptor device,
+                                          bool readOnly = false)
+    {
+        return Value.CreateSequence<T>(sequenceShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, true, device, readOnly);
     }
 
     private static Value Create<T>(uint dimension,

@@ -63,4 +63,29 @@
         const std::vector<bool>& sequenceStartFlags, const CNTK::DeviceDescriptor& device, bool readOnly = false) {
         return CNTK::Value::Create<double>(CNTK::NDShape({dimension}), oneHotSequences, sequenceStartFlags, device, readOnly);
     }
+
+    static CNTK::ValuePtr CNTK::Value::CreateSequenceFloat(const CNTK::NDShape& sequenceShape,
+        const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const float* nonZeroValues, size_t numNonZeroValues,
+        bool sequenceStartFlag, const CNTK::DeviceDescriptor& device, bool readOnly = false) {
+        return CNTK::Value::CreateSequence<float>(sequenceShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, sequenceStartFlag, device, readOnly);
+    }
+
+    static CNTK::ValuePtr CNTK::Value::CreateSequenceDouble(const CNTK::NDShape& sequenceShape,
+        const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const double* nonZeroValues, size_t numNonZeroValues,
+        bool sequenceStartFlag, const CNTK::DeviceDescriptor& device, bool readOnly = false) {
+        return CNTK::Value::CreateSequence<double>(sequenceShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, sequenceStartFlag, device, readOnly);
+    }
+
+    static CNTK::ValuePtr CNTK::Value::CreateSequenceFloat(const CNTK::NDShape& sequenceShape,
+        const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const float* nonZeroValues, size_t numNonZeroValues,
+        const CNTK::DeviceDescriptor& device, bool readOnly = false) {
+        return CNTK::Value::CreateSequence<float>(sequenceShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, device, readOnly);
+    }
+
+    static CNTK::ValuePtr CNTK::Value::CreateSequenceDouble(const CNTK::NDShape& sequenceShape,
+        const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const double* nonZeroValues, size_t numNonZeroValues,
+        const CNTK::DeviceDescriptor& device, bool readOnly = false) {
+        return CNTK::Value::CreateSequence<double>(sequenceShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, device, readOnly);
+    }
+
 }
