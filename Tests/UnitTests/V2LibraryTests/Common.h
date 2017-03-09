@@ -425,6 +425,50 @@ inline std::pair<NDArrayViewPtr, NDArrayViewPtr> GenerateSparseSequence(size_t v
     return{ inputValueData->DeepClone(), sparseData };
 }
 
+template <typename ElementType>
+std::tuple<std::vector<ElementType>, std::vector<SparseIndexType>, std::vector<SparseIndexType>, std::vector<ElementType>, size_t> GenerateSequenceInCSC(size_t dimension, size_t sequenceLength)
+{
+    auto numMatrixRows = dimension;
+    auto numMatrixCols = sequenceLength;
+
+    std::vector<SparseIndexType> colsStarts(numMatrixCols + 1);
+    colsStarts[0] = 0;
+    int numNonZeroValues = 0;
+    for (size_t i = 1; i <= numMatrixCols; ++i)
+    {
+        int numValuesInCurrentCol = (rand() % numMatrixRows) + (rand() % 1);
+        numNonZeroValues += numValuesInCurrentCol;
+        colsStarts[i] = colsStarts[i - 1] + numValuesInCurrentCol;
+    }
+
+    // Now fill the actual values
+    std::vector<ElementType> nonZeroValues(numNonZeroValues);
+    std::vector<SparseIndexType> rowIndices(numNonZeroValues);
+    size_t nnzIndex = 0;
+    std::vector<ElementType> referenceDenseData(dimension * sequenceLength);
+    for (size_t j = 0; j < numMatrixCols; ++j)
+    {
+        size_t numRowsWithValuesInCurrentCol = colsStarts[j + 1] - colsStarts[j];
+        size_t numValuesWritten = 0;
+        std::unordered_set<int> rowsWrittenTo;
+        while (numValuesWritten < numRowsWithValuesInCurrentCol)
+        {
+            int rowIndex = rand() % numMatrixRows;
+            if (rowsWrittenTo.insert(rowIndex).second)
+            {
+                ElementType value = ((ElementType)rand()) / RAND_MAX;
+                nonZeroValues[nnzIndex] = value;
+                referenceDenseData[(j * numMatrixRows) + rowIndex] = value;
+                rowIndices[nnzIndex] = rowIndex;
+                numValuesWritten++;
+                nnzIndex++;
+            }
+        }
+    }
+
+    return std::make_tuple(referenceDenseData, colsStarts, rowIndices, nonZeroValues, numNonZeroValues);
+}
+
 #pragma warning(pop)
 
 inline NDShape CreateShape(size_t numAxes, size_t maxDimSize)
