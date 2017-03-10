@@ -1017,13 +1017,13 @@ void CreateSequenceTestSprse(const DeviceDescriptor device, bool readOnly)
         std::tie(referenceDenseData, colsStarts, rowIndices, nonZeroValues, numNonZeroValues) = GenerateSequenceInCSC<ElementType>(dimSize, seqLen);
 
         // Not using seqStartFlag.
-        sparseValue = Value::CreateSequence<ElementType>({ dimSize, seqLen }, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, device, readOnly);
+        sparseValue = Value::CreateSequence<ElementType>( { dimSize }, seqLen, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, device, readOnly);
         denseValue = Value::CreateSequence<ElementType>({ dimSize }, referenceDenseData, device, readOnly);
         CheckSparseValueEqualToDenseValue(sparseValue, denseValue, device);
 
         // Using seqStartFlag.
         auto seqStartFlag = static_cast<int>(rand()) % 2 == 0 ? true : false;
-        sparseValue = Value::CreateSequence({ dimSize, seqLen }, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, seqStartFlag, device, readOnly);
+        sparseValue = Value::CreateSequence({ dimSize }, seqLen, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, seqStartFlag, device, readOnly);
         denseValue = Value::CreateSequence({ dimSize }, referenceDenseData, seqStartFlag, device, readOnly);
         CheckSparseValueEqualToDenseValue(sparseValue, denseValue, device);
     }
@@ -1032,12 +1032,12 @@ void CreateSequenceTestSprse(const DeviceDescriptor device, bool readOnly)
     seqLen = GenerateSequenceLengths(1, maxSequenceLen)[0];
     std::tie(referenceDenseData, colsStarts, rowIndices, nonZeroValues, numNonZeroValues) = GenerateSequenceInCSC<ElementType>(dimSize * dimSize, seqLen);
 
-    sparseValue = Value::CreateSequence({ dimSize * dimSize, seqLen }, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, device, readOnly);
+    sparseValue = Value::CreateSequence({ dimSize * dimSize }, seqLen, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, device, readOnly);
     denseValue = Value::CreateSequence({ dimSize * dimSize }, referenceDenseData, device, readOnly);
     CheckSparseValueEqualToDenseValue(sparseValue, denseValue, device);
 
     VerifyException([&colsStarts, &rowIndices, &nonZeroValues, &numNonZeroValues, &dimSize, &seqLen, &device, &readOnly]() {
-        Value::CreateSequence<ElementType>( {dimSize, dimSize, seqLen }, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, device, readOnly);
+        Value::CreateSequence<ElementType>( {dimSize, dimSize }, seqLen, colsStarts.data(), rowIndices.data(), nonZeroValues.data(), numNonZeroValues, device, readOnly);
     }, "The expected exception has not been caught: Value::Create: the sample shape leading axis dimensionality must equal the total size of the sample.");
 }
 

@@ -820,6 +820,7 @@
 %rename (_HasInferredDimension) CNTK::NDShape::HasInferredDimension;
 
 %typemap(cscode) CNTK::NDShape %{
+
     public uint Rank
     {
         get { return GetRank(); }
@@ -1126,7 +1127,7 @@
         return Create<T>(dimension, batchOfSequences, seqStartFlags, device, readOnly);
     }
 
-    public static Value CreateSequence<T>(NDShape sequenceShape,
+    public static Value CreateSequence<T>(NDShape sampleShape, uint sequenceLength,
                                           int[] colStarts, int[] rowIndices, T[] nonZeroValues, uint numNonZeroValues,
                                           bool sequenceStartFlag,
                                           DeviceDescriptor device,
@@ -1134,11 +1135,11 @@
     {
         if (typeof(T).Equals(typeof(float)))
         {
-            return Value.CreateSequenceFloat(sequenceShape, colStarts, rowIndices, nonZeroValues as float[], numNonZeroValues, sequenceStartFlag, device, readOnly);
+            return Value.CreateSequenceFloat(sampleShape, sequenceLength, colStarts, rowIndices, nonZeroValues as float[], numNonZeroValues, sequenceStartFlag, device, readOnly);
         }
         else if (typeof(T).Equals(typeof(double)))
         {
-            return Value.CreateSequenceDouble(sequenceShape, colStarts, rowIndices, nonZeroValues as double[], numNonZeroValues, sequenceStartFlag, device, readOnly);
+            return Value.CreateSequenceDouble(sampleShape, sequenceLength, colStarts, rowIndices, nonZeroValues as double[], numNonZeroValues, sequenceStartFlag, device, readOnly);
         }
         else
         {
@@ -1146,12 +1147,40 @@
         }
     }
 
-    public static Value CreateSequence<T>(NDShape sequenceShape,
+    public static Value CreateSequence<T>(NDShape sampleShape, uint sequenceLength,
                                           int[] colStarts, int[] rowIndices, T[] nonZeroValues, uint numNonZeroValues,
                                           DeviceDescriptor device,
                                           bool readOnly = false)
     {
-        return Value.CreateSequence<T>(sequenceShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, true, device, readOnly);
+        return Value.CreateSequence<T>(sampleShape, sequenceLength, colStarts, rowIndices, nonZeroValues, numNonZeroValues, true, device, readOnly);
+    }
+
+    public static Value CreateSequence<T>(uint dimension, uint sequenceLength,
+                                          int[] colStarts, int[] rowIndices, T[] nonZeroValues, uint numNonZeroValues,
+                                          bool sequenceStartFlag,
+                                          DeviceDescriptor device,
+                                          bool readOnly = false)
+    {
+        if (typeof(T).Equals(typeof(float)))
+        {
+            return Value.CreateSequenceFloat(dimension, sequenceLength, colStarts, rowIndices, nonZeroValues as float[], numNonZeroValues, sequenceStartFlag, device, readOnly);
+        }
+        else if (typeof(T).Equals(typeof(double)))
+        {
+            return Value.CreateSequenceDouble(dimension, sequenceLength, colStarts, rowIndices, nonZeroValues as double[], numNonZeroValues, sequenceStartFlag, device, readOnly);
+        }
+        else
+        {
+            throw new System.ArgumentException("The data type " + typeof(T).ToString() + " is not supported. Only float or double is supported by CNTK.");
+        }
+    }
+
+    public static Value CreateSequence<T>(uint dimension, uint sequenceLength,
+                                          int[] colStarts, int[] rowIndices, T[] nonZeroValues, uint numNonZeroValues,
+                                          DeviceDescriptor device,
+                                          bool readOnly = false)
+    {
+        return Value.CreateSequence<T>(dimension, sequenceLength, colStarts, rowIndices, nonZeroValues, numNonZeroValues, true, device, readOnly);
     }
 
     private static Value Create<T>(uint dimension,
@@ -1317,6 +1346,16 @@
     NDArrayView(const NDShape& viewShape, double *dataBuffer, size_t numBufferElements, const DeviceDescriptor& device, bool readOnly = false)
     {
         return new CNTK::NDArrayView(CNTK::DataType::Double, viewShape, dataBuffer, numBufferElements * sizeof(double), device, readOnly);
+    }
+
+    NDArrayView(const NDShape& viewShape, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const float* nonZeroValues, size_t numNonZeroValues, const DeviceDescriptor& device, bool readOnly = false)
+    {
+        return new CNTK::NDArrayView(viewShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, device, readOnly);
+    }
+
+    NDArrayView(const NDShape& viewShape, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const double* nonZeroValues, size_t numNonZeroValues, const DeviceDescriptor& device, bool readOnly = false)
+    {
+        return new CNTK::NDArrayView(viewShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, device, readOnly);
     }
 }
 

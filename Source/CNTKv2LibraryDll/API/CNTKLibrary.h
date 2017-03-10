@@ -2355,32 +2355,39 @@ namespace CNTK
         /// The sequence length is determined by the number of rows of the sparse matrix.
         /// Parameters:
         ///     ElementType: data type of the created Value object.Currently, float and double are supported.
-        ///     sequenceShape: the tensor shape plus the sequence axis. For sparse input, the tensor shape leading dimensionality must be the same as the total size of the tensor shape.
+        ///     sampleShape: the tensor shape. For sparse input, the tensor shape leading dimensionality must be the same as the total size of the tensor shape.
+        ///     sequenceLength: the sequence length.
         ///     sequenceData: the collection of indexes representing the sequence of samples.
         ///     sequenceStartFlag : true indicates that it is a new sequence. false means a continuation of a previous sequence.
         ///     device : on which device the Value object should be created.
         ///     readOnly : the Value is read - only if this flag is true.
         ///
         template <typename ElementType>
-        CNTK_API static ValuePtr CreateSequence(const NDShape& sequenceShape, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const ElementType* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly = false);
+        CNTK_API static ValuePtr CreateSequence(const NDShape& sampleShape, size_t sequenceLength, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const ElementType* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly = false);
 
         ///
         /// Creates a new Value object containing a sequence of samples.
-        /// The sequence is represented by CSC sparse input format (http://docs.nvidia.com/cuda/cusparse/#compressed-sparse-column-format-csc)
-        /// The sequenceStartFlag specifies wehther this sequence is a new sequence or continuation of a previous sequence at the same index in the sequences list from a previous call to this method.
-        /// The sequence length is determined by the number of rows of the sparse matrix.
-        /// This sequence is a new sequence.
-        /// Parameters:
-        ///     ElementType: data type of the created Value object.Currently, float and double are supported.
-        ///     sequenceShape: the tensor shape plus the sequence axis. For sparse input, the tensor shape leading dimensionality must be the same as the total size of the tensor shape.
-        ///     sequenceData: the collection of indexes representing the sequence of samples.
-        ///     device : on which device the Value object should be created.
-        ///     readOnly : the Value is read - only if this flag is true.
+        /// This method does not have paraemter sequenceStartFlag, and thus the sequence is always a new sequence.
+        /// All other parameters are same as the method above.
         ///
         template <typename ElementType>
-        static ValuePtr CreateSequence(const NDShape& sequenceShape, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const ElementType* nonZeroValues, size_t numNonZeroValues, const DeviceDescriptor& device, bool readOnly = false)
+        static ValuePtr CreateSequence(const NDShape& sampleShape, size_t sequenceLength, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const ElementType* nonZeroValues, size_t numNonZeroValues, const DeviceDescriptor& device, bool readOnly = false)
         {
-            return CreateSequence(sequenceShape, colStarts, rowIndices, nonZeroValues, numNonZeroValues, true, device, readOnly);
+            return CreateSequence(sampleShape, sequenceLength, colStarts, rowIndices, nonZeroValues, numNonZeroValues, true, device, readOnly);
+        }
+
+        template <typename ElementType>
+        static ValuePtr CreateSequence(size_t dimension, size_t sequenceLength, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const ElementType* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly = false)
+        {
+            auto sampleShape = NDShape({dimension});
+            return CreateSequence(sampleShape, sequenceLength, colStarts, rowIndices, nonZeroValues, numNonZeroValues, sequenceStartFlag, device, readOnly);
+        }
+
+        template <typename ElementType>
+        static ValuePtr CreateSequence(size_t dimension, size_t sequenceLength, const SparseIndexType* colStarts, const SparseIndexType* rowIndices, const ElementType* nonZeroValues, size_t numNonZeroValues, const DeviceDescriptor& device, bool readOnly = false)
+        {
+            auto sampleShape = NDShape({ dimension });
+            return CreateSequence(sampleShape, sequenceLength, colStarts, rowIndices, nonZeroValues, numNonZeroValues, true, device, readOnly);
         }
 
         ///
