@@ -14,7 +14,9 @@
 #include "../HTKMLFReader/msra_mgram.h"
 #include "latticearchive.h"
 #include "StringUtil.h"
-
+#include "MLFIndexer.h"
+#include "MLFUtils.h"
+#include "ReaderConstants.h"
 
 #undef max // max is defined in minwindef.h
 
@@ -25,47 +27,271 @@ using namespace std;
 static float s_oneFloat = 1.0;
 static double s_oneDouble = 1.0;
 
-// Currently we only have a single mlf chunk that contains a vector of all labels.
-// TODO: In the future MLF should be converted to a more compact format that is amenable to chunking.
-class MLFDataDeserializer::MLFChunk : public Chunk
-{
-    MLFDataDeserializer* m_parent;
-public:
-    MLFChunk(MLFDataDeserializer* parent) : m_parent(parent)
-    {}
+// A constant used in 1-hot vectors to identify the first frame of a phone.
+// Used primarily in CTC-type training.
+static float PHONE_BOUNDARY = 2.0f;
 
-    virtual void GetSequence(size_t sequenceId, vector<SequenceDataPtr>& result) override
+// Sparse labels for an utterance.
+template <class ElemType>
+struct MLFSequenceData : SparseSequenceData
+{
+    vector<ElemType> m_values;
+    unique_ptr<IndexType[]> m_indicesPtr;
+
+    MLFSequenceData(size_t numberOfSamples) :
+        m_values(numberOfSamples, 1),
+        m_indicesPtr(new IndexType[numberOfSamples])
     {
-        m_parent->GetSequenceById(sequenceId, result);
+        if (numberOfSamples > numeric_limits<IndexType>::max())
+        {
+            RuntimeError("Number of samples in an MLFSequence (%" PRIu64 ") "
+                "exceeds the maximum allowed value (%" PRIu64 ")\n",
+                numberOfSamples, (size_t)numeric_limits<IndexType>::max());
+        }
+
+        m_nnzCounts.resize(numberOfSamples, static_cast<IndexType>(1));
+        m_numberOfSamples = (uint32_t)numberOfSamples;
+        m_totalNnzCount = static_cast<IndexType>(numberOfSamples);
+        m_indices = m_indicesPtr.get();
+    }
+
+    MLFSequenceData(size_t numberOfSamples, const vector<size_t>& phoneBoundaries) :
+        MLFSequenceData(numberOfSamples)
+    {
+        for (auto boundary : phoneBoundaries)
+            m_values[boundary] = PHONE_BOUNDARY;
+    }
+
+    const void* GetDataBuffer() override
+    {
+        return m_values.data();
     }
 };
 
-// Inner class for an utterance.
-struct MLFUtterance : SequenceDescription
+// Base chunk for frame and sequence mode.
+class MLFDataDeserializer::ChunkBase : public Chunk
 {
-    size_t m_sequenceStart;
+protected:
+    std::vector<char> m_buffer;
+    MLFUtteranceParser m_parser;
+    std::vector<bool> m_valid;
+
+    const MLFDataDeserializer& m_parent;
+    const ChunkDescriptor& m_descriptor;
+
+public:
+    ChunkBase(const MLFDataDeserializer& parent, const ChunkDescriptor& descriptor, const std::wstring& fileName, std::shared_ptr<FILE>& f, StateTablePtr states)
+        : m_parser(states),
+          m_descriptor(descriptor),
+          m_parent(parent)
+    {
+        // Let's see if the open descriptor has problems.
+        if (ferror(f.get()) != 0)
+            f.reset(fopenOrDie(fileName.c_str(), L"rbS"), [](FILE* f) { if (f) fclose(f); });
+
+        if (descriptor.m_sequences.empty() || !descriptor.m_byteSize)
+            LogicError("Empty chunks are not supported.");
+
+        size_t sizeInBytes = descriptor.m_sequences.back().m_fileOffsetBytes + descriptor.m_sequences.back().m_byteSize -
+            descriptor.m_sequences.front().m_fileOffsetBytes;
+
+        m_buffer.resize(sizeInBytes + 1);
+
+        // Make sure we always have 0 at the end for buffer overrun.
+        m_buffer[sizeInBytes] = 0;
+
+        auto chunkOffset = descriptor.m_sequences.front().m_fileOffsetBytes;
+
+        // Seek and read chunk into memory.
+        int rc = _fseeki64(f.get(), chunkOffset, SEEK_SET);
+        if (rc)
+            RuntimeError("Error seeking to position '%" PRId64 "' in the input file '%ls', error code '%d'", chunkOffset, fileName.c_str(), rc);
+
+        freadOrDie(m_buffer.data(), sizeInBytes, 1, f.get());
+
+        m_valid.resize(m_descriptor.m_numberOfSequences, true);
+    }
+};
+
+// Sequence MLF chunk. The time of life always less than the time of life of the parent deserializer.
+class MLFDataDeserializer::SequenceChunk : public MLFDataDeserializer::ChunkBase
+{
+    std::vector<std::vector<MLFFrameRange>> m_sequences;
+
+public:
+    SequenceChunk(const MLFDataDeserializer& parent, const ChunkDescriptor& descriptor, const std::wstring& fileName, std::shared_ptr<FILE>& f, StateTablePtr states)
+        : ChunkBase(parent, descriptor, fileName, f, states)
+    {
+        m_sequences.resize(m_descriptor.m_numberOfSequences);
+
+#pragma omp parallel for schedule(dynamic)
+        for (int i = 0; i < descriptor.m_sequences.size(); ++i)
+            CacheSequence(descriptor.m_sequences[i]);
+
+        std::vector<char> tmp;
+        m_buffer.swap(tmp);
+    }
+
+    void CacheSequence(const SequenceDescriptor& sequence)
+    {
+        auto start = m_buffer.data() + (sequence.m_fileOffsetBytes - m_descriptor.m_sequences.front().m_fileOffsetBytes);
+        auto end = start + sequence.m_byteSize;
+
+        std::vector<MLFFrameRange> utterance;
+        bool parsed = m_parser.Parse(sequence, boost::make_iterator_range(start, end), utterance);
+        if (!parsed) // cannot parse
+        {
+            fprintf(stderr, "WARNING: Cannot parse the utterance %s\n", m_parent.m_corpus->IdToKey(sequence.m_key.m_sequence).c_str());
+            m_valid[sequence.m_indexInChunk] = false;
+            return;
+        }
+        m_sequences[sequence.m_indexInChunk] = std::move(utterance);
+    }
+
+    void GetSequence(size_t sequenceIndex, std::vector<SequenceDataPtr>& result) override
+    {
+        if (!m_valid[sequenceIndex])
+        {
+            SparseSequenceDataPtr s = make_shared<MLFSequenceData<float>>(0);
+            s->m_isValid = false;
+            result.push_back(s);
+            return;
+        }
+
+        const auto& utterance = m_sequences[sequenceIndex];
+        const auto& sequence = m_descriptor.m_sequences[sequenceIndex];
+
+        // Compute some statistics and perform checks.
+        vector<size_t> sequencePhoneBoundaries(m_parent.m_withPhoneBoundaries ? utterance.size() : 0);
+        if (m_parent.m_withPhoneBoundaries)
+        {
+            for (size_t i = 0; i < utterance.size(); ++i)
+                sequencePhoneBoundaries[i] = utterance[i].FirstFrame();
+        }
+
+        // Packing labels for the utterance into sparse sequence.
+        SparseSequenceDataPtr s;
+        if (m_parent.m_elementType == ElementType::tfloat)
+            s = make_shared<MLFSequenceData<float>>(sequence.m_numberOfSamples, sequencePhoneBoundaries);
+        else
+        {
+            assert(m_parent.m_elementType == ElementType::tdouble);
+            s = make_shared<MLFSequenceData<double>>(sequence.m_numberOfSamples, sequencePhoneBoundaries);
+        }
+
+        auto startRange = s->m_indices;
+        for (const auto& f : utterance)
+        {
+            std::fill(startRange, startRange + f.NumFrames(), static_cast<IndexType>(f.ClassId()));
+            startRange += f.NumFrames();
+
+            if (f.ClassId() >= m_parent.m_dimension)
+                RuntimeError("Class id %d exceeds the model output dimension %d.", (int)f.ClassId(), (int)m_parent.m_dimension);
+        }
+
+        result.push_back(s);
+    }
+};
+
+// MLF chunk. The time of life always less than the time of life of the parent deserializer.
+class MLFDataDeserializer::FrameChunk : public MLFDataDeserializer::ChunkBase
+{
+    // Actual values of frames.
+    std::vector<ClassIdType> m_classIds;
+
+public:
+    FrameChunk(const MLFDataDeserializer& parent, const ChunkDescriptor& descriptor, const std::wstring& fileName, std::shared_ptr<FILE>& f, StateTablePtr states)
+        : ChunkBase(parent, descriptor, fileName, f, states)
+    {
+        // Let's also preallocate an big array for filling in class ids for whole chunk,
+        // it is used for optimizing speed of retrieval in frame mode.
+        m_classIds.resize(m_descriptor.m_numberOfSamples);
+
+        // Parse the data on different threads to avoid locking during GetSequence calls.
+#pragma omp parallel for schedule(dynamic)
+        for (int i = 0; i < descriptor.m_sequences.size(); ++i)
+            CacheSequence(descriptor.m_sequences[i]);
+
+        std::vector<char> tmp;
+        m_buffer.swap(tmp);
+    }
+
+    // Get utterance by the absolute frame index in chunk.
+    // Uses the upper bound to do the binary search among sequences of the chunk.
+    size_t GetUtteranceForChunkFrameIndex(size_t frameIndex) const
+    {
+        auto result = std::upper_bound(
+            m_descriptor.m_firstSamples.begin(),
+            m_descriptor.m_firstSamples.end(),
+            frameIndex,
+            [](size_t fi, const size_t& a) { return fi < a; });
+        return result - 1 - m_descriptor.m_firstSamples.begin();
+    }
+
+    void GetSequence(size_t sequenceIndex, std::vector<SequenceDataPtr>& result) override
+    {
+        size_t utteranceId = GetUtteranceForChunkFrameIndex(sequenceIndex);
+        if (!m_valid[utteranceId])
+        {
+            SparseSequenceDataPtr s = make_shared<MLFSequenceData<float>>(0);
+            s->m_isValid = false;
+            result.push_back(s);
+            return;
+        }
+
+        size_t label = m_classIds[sequenceIndex];
+        assert(label < m_parent.m_categories.size());
+        result.push_back(m_parent.m_categories[label]);
+    }
+
+    // Parses and caches sequence in the buffer for future fast retrieval in frame mode.
+    void CacheSequence(const SequenceDescriptor& sequence)
+    {
+        auto start = m_buffer.data() + (sequence.m_fileOffsetBytes - m_descriptor.m_sequences.front().m_fileOffsetBytes);
+        auto end = start + sequence.m_byteSize;
+
+        std::vector<MLFFrameRange> utterance;
+        bool parsed = m_parser.Parse(sequence, boost::make_iterator_range(start, end), utterance);
+        if (!parsed)
+        {
+            m_valid[sequence.m_indexInChunk] = false;
+            fprintf(stderr, "WARNING: Cannot parse the utterance %s\n", m_parent.m_corpus->IdToKey(sequence.m_key.m_sequence).c_str());
+            return;
+        }
+
+        auto startRange = m_classIds.begin() + m_descriptor.m_firstSamples[sequence.m_indexInChunk];
+        for(size_t i = 0; i < utterance.size(); ++i)
+        {
+            const auto& range = utterance[i];
+            if (range.ClassId() >= m_parent.m_dimension)
+                // TODO: Possibly set m_valid to false, but currently preserving the old behavior.
+                RuntimeError("Class id %d exceeds the model output dimension %d.", (int)range.ClassId(), (int)m_parent.m_dimension);
+
+            std::fill(startRange, startRange + utterance[i].NumFrames(), range.ClassId());
+            startRange += utterance[i].NumFrames();
+        }
+    }
 };
 
 MLFDataDeserializer::MLFDataDeserializer(CorpusDescriptorPtr corpus, const ConfigParameters& cfg, bool primary)
     : DataDeserializerBase(primary)
 {
+    if (primary)
+        RuntimeError("MLFDataDeserializer currently does not support primary mode.");
+
     // TODO: This should be read in one place, potentially given by SGD.
     m_frameMode = (ConfigValue)cfg("frameMode", "true");
 
-    // MLF cannot control chunking.
-    if (primary)
-    {
-        LogicError("Mlf deserializer does not support primary mode - it cannot control chunking.");
-    }
-
     argvector<ConfigValue> inputs = cfg("input");
     if (inputs.size() != 1)
-    {
         LogicError("MLFDataDeserializer supports a single input stream only.");
-    }
 
     std::wstring precision = cfg(L"precision", L"float");;
     m_elementType = AreEqualIgnoreCase(precision, L"float") ? ElementType::tfloat : ElementType::tdouble;
+
+    // Same behavior as for the old deserializer - keep almost all in memory,
+    // because there are a lot of none aligned sets.
+    m_chunkSizeBytes = cfg(L"chunkSizeInBytes", g_64MB);
 
     ConfigParameters input = inputs.front();
     auto inputName = input.GetMemberIds().front();
@@ -73,14 +299,15 @@ MLFDataDeserializer::MLFDataDeserializer(CorpusDescriptorPtr corpus, const Confi
     ConfigParameters streamConfig = input(inputName);
     ConfigHelper config(streamConfig);
 
-    size_t dimension = config.GetLabelDimension();
+    m_dimension = config.GetLabelDimension();
 
     m_withPhoneBoundaries = streamConfig(L"phoneBoundaries", false);
     if (m_frameMode && m_withPhoneBoundaries)
         LogicError("frameMode and phoneBoundaries are not supposed to be used together.");
+
     wstring labelMappingFile = streamConfig(L"labelMappingFile", L"");
-    InitializeChunkDescriptions(corpus, config, labelMappingFile, dimension);
-    InitializeStream(inputName, dimension);
+    InitializeChunkDescriptions(corpus, config, labelMappingFile, m_dimension);
+    InitializeStream(inputName, m_dimension);
 }
 
 MLFDataDeserializer::MLFDataDeserializer(CorpusDescriptorPtr corpus, const ConfigParameters& labelConfig, const wstring& name)
@@ -94,13 +321,17 @@ MLFDataDeserializer::MLFDataDeserializer(CorpusDescriptorPtr corpus, const Confi
     ConfigHelper config(labelConfig);
 
     config.CheckLabelType();
-    size_t dimension = config.GetLabelDimension();
+    m_dimension = config.GetLabelDimension();
 
-    if (dimension > numeric_limits<IndexType>::max())
+    if (m_dimension > numeric_limits<IndexType>::max())
     {
         RuntimeError("Label dimension (%" PRIu64 ") exceeds the maximum allowed "
-            "value (%" PRIu64 ")\n", dimension, (size_t)numeric_limits<IndexType>::max());
+            "value (%" PRIu64 ")\n", m_dimension, (size_t)numeric_limits<IndexType>::max());
     }
+
+    // Same behavior as for the old deserializer - keep almost all in memory,
+    // because there are a lot of none aligned sets.
+    m_chunkSizeBytes = labelConfig(L"chunkSizeInBytes", g_64MB);
 
     std::wstring precision = labelConfig(L"precision", L"float");;
     m_elementType = AreEqualIgnoreCase(precision, L"float") ? ElementType::tfloat : ElementType::tdouble;
@@ -108,8 +339,8 @@ MLFDataDeserializer::MLFDataDeserializer(CorpusDescriptorPtr corpus, const Confi
     m_withPhoneBoundaries = labelConfig(L"phoneBoundaries", "false");
 
     wstring labelMappingFile = labelConfig(L"labelMappingFile", L"");
-    InitializeChunkDescriptions(corpus, config, labelMappingFile, dimension);
-    InitializeStream(name, dimension);
+    InitializeChunkDescriptions(corpus, config, labelMappingFile, m_dimension);
+    InitializeStream(name, m_dimension);
 }
 
 // Currently we create a single chunk only.
@@ -117,100 +348,54 @@ void MLFDataDeserializer::InitializeChunkDescriptions(CorpusDescriptorPtr corpus
 {
     // TODO: Similarly to the old reader, currently we assume all Mlfs will have same root name (key)
     // restrict MLF reader to these files--will make stuff much faster without having to use shortened input files
-
-    // TODO: currently we do not use symbol and word tables.
-    const msra::lm::CSymbolSet* wordTable = nullptr;
-    unordered_map<const char*, int>* symbolTable = nullptr;
     vector<wstring> mlfPaths = config.GetMlfPaths();
 
-    // TODO: Currently we still use the old IO module. This will be refactored later.
-    const double htkTimeToFrame = 100000.0; // default is 10ms
-    msra::asr::htkmlfreader<msra::asr::htkmlfentry, msra::lattices::lattice::htkmlfwordsequence> labels(mlfPaths, set<wstring>(), stateListPath, wordTable, symbolTable, htkTimeToFrame);
-
-    // Make sure 'msra::asr::htkmlfreader' type has a move constructor
-    static_assert(
-        is_move_constructible<
-        msra::asr::htkmlfreader<msra::asr::htkmlfentry,
-        msra::lattices::lattice::htkmlfwordsequence >> ::value,
-        "Type 'msra::asr::htkmlfreader' should be move constructible!");
-
-    MLFUtterance description;
-    size_t numClasses = 0;
-    size_t totalFrames = 0;
-
-    // TODO resize m_keyToSequence with number of IDs from string registry
-    for (const auto& l : labels)
+    if (!stateListPath.empty())
     {
-        auto key = msra::strfun::utf8(l.first);
-        if (!corpus->IsIncluded(key))
-            continue;
-
-        size_t id = corpus->KeyToId(key);
-        description.m_key.m_sequence = id;
-
-        const auto& utterance = l.second;
-        description.m_sequenceStart = m_classIds.size();
-        uint32_t numberOfFrames = 0;
-
-        vector<size_t> sequencePhoneBoundaries(m_withPhoneBoundaries ? utterance.size() : 0); // Phone boundaries of given sequence
-        foreach_index(i, utterance)
-        {
-            if (m_withPhoneBoundaries)
-                sequencePhoneBoundaries[i] = utterance[i].firstframe;
-            const auto& timespan = utterance[i];
-            if ((i == 0 && timespan.firstframe != 0) ||
-                (i > 0 && utterance[i - 1].firstframe + utterance[i - 1].numframes != timespan.firstframe))
-            {
-                RuntimeError("Labels are not in the consecutive order MLF in label set: %ls", l.first.c_str());
-            }
-
-            if (timespan.classid >= dimension)
-            {
-                RuntimeError("Class id %d exceeds the model output dimension %d.", (int)timespan.classid, (int)dimension);
-            }
-
-            if (timespan.classid != static_cast<msra::dbn::CLASSIDTYPE>(timespan.classid))
-            {
-                RuntimeError("CLASSIDTYPE has too few bits");
-            }
-
-            if (SEQUENCELEN_MAX < timespan.firstframe + timespan.numframes)
-            {
-                RuntimeError("Maximum number of sample per sequence exceeded.");
-            }
-
-            numClasses = max(numClasses, (size_t)(1u + timespan.classid));
-
-            for (size_t t = timespan.firstframe; t < timespan.firstframe + timespan.numframes; t++)
-            {
-                m_classIds.push_back(timespan.classid);
-                numberOfFrames++;
-            }
-        }
-
-        if (m_withPhoneBoundaries)
-            m_phoneBoundaries.push_back(sequencePhoneBoundaries);
-
-        description.m_numberOfSamples = numberOfFrames;
-        m_utteranceIndex.push_back(totalFrames);
-        totalFrames += numberOfFrames;
-
-        if (m_keyToSequence.size() <= description.m_key.m_sequence)
-        {
-            m_keyToSequence.resize(description.m_key.m_sequence + 1, SIZE_MAX);
-        }
-        assert(m_keyToSequence[description.m_key.m_sequence] == SIZE_MAX);
-        m_keyToSequence[description.m_key.m_sequence] = m_utteranceIndex.size() - 1;
-        m_numberOfSequences++;
+        m_stateTable = std::make_shared<StateTable>();
+        m_stateTable->ReadStateList(stateListPath);
     }
-    m_utteranceIndex.push_back(totalFrames);
 
-    m_totalNumberOfFrames = totalFrames;
+    auto emptyPair = std::pair<const ChunkDescriptor*, const SequenceDescriptor*>(nullptr, nullptr);
+    size_t totalNumSequences = 0;
+    size_t totalNumFrames = 0;
+    for (const auto& path : mlfPaths)
+    {
+        auto file = fopenOrDie(path, L"rbS");
+        m_mlfFiles.push_back(std::make_pair(std::shared_ptr<FILE>(file, [](FILE *f) { if (f) fclose(f); }), path));
 
-    fprintf(stderr, "MLFDataDeserializer::MLFDataDeserializer: %" PRIu64 " utterances with %" PRIu64 " frames in %" PRIu64 " classes\n",
-            m_numberOfSequences,
-            m_totalNumberOfFrames,
-            numClasses);
+        auto indexer = std::make_shared<MLFIndexer>(file, m_frameMode, m_chunkSizeBytes);
+        indexer->Build(corpus);
+        m_indexers.push_back(make_pair(path, indexer));
+
+        // Build some auxiliary information.
+        const auto& index = indexer->GetIndex();
+        for (const auto& chunk : index.m_chunks)
+        {
+            // Preparing chunk info that will be exposed to the outside.
+            for (size_t i = 0; i < chunk.m_sequences.size(); ++i)
+            {
+                const auto& sequence = chunk.m_sequences[i];
+
+                if (m_keyToSequence.size() <= sequence.m_key.m_sequence)
+                    m_keyToSequence.resize(sequence.m_key.m_sequence + 1, emptyPair);
+
+                assert(m_keyToSequence[sequence.m_key.m_sequence] == emptyPair);
+                m_keyToSequence[sequence.m_key.m_sequence] = std::make_pair(&chunk, &sequence);
+            }
+
+            totalNumSequences += chunk.m_numberOfSequences;
+            totalNumFrames += chunk.m_numberOfSamples;
+            m_chunkToFileIndex.insert(make_pair(&chunk, m_mlfFiles.size() - 1));
+            m_chunks.push_back(&chunk);
+        }
+    }
+
+    std::sort(m_chunks.begin(), m_chunks.end());
+
+    fprintf(stderr, "MLFDataDeserializer::MLFDataDeserializer: %" PRIu64 " utterances with %" PRIu64 " frames\n",
+        totalNumSequences,
+        totalNumFrames);
 
     if (m_frameMode)
     {
@@ -252,15 +437,19 @@ void MLFDataDeserializer::InitializeStream(const wstring& name, size_t dimension
     m_streams.push_back(stream);
 }
 
-// Currently MLF has a single chunk.
-// TODO: This will be changed when the deserializer properly supports chunking.
 ChunkDescriptions MLFDataDeserializer::GetChunkDescriptions()
 {
-    auto cd = make_shared<ChunkDescription>();
-    cd->m_id = 0;
-    cd->m_numberOfSequences = m_frameMode ? m_totalNumberOfFrames : m_numberOfSequences;
-    cd->m_numberOfSamples = m_totalNumberOfFrames;
-    return ChunkDescriptions{cd};
+    ChunkDescriptions chunks;
+    chunks.reserve(m_chunks.size());
+    for (size_t i = 0; i < m_chunks.size(); ++i)
+    {
+        auto cd = make_shared<ChunkDescription>();
+        cd->m_id = static_cast<ChunkIdType>(i);
+        cd->m_numberOfSequences =  m_frameMode ? m_chunks[i]->m_numberOfSamples : m_chunks[i]->m_numberOfSequences;
+        cd->m_numberOfSamples = m_chunks[i]->m_numberOfSamples;
+        chunks.push_back(cd);
+    }
+    return chunks;
 }
 
 // Gets sequences for a particular chunk.
@@ -272,112 +461,46 @@ void MLFDataDeserializer::GetSequencesForChunk(ChunkIdType, vector<SequenceDescr
 
 ChunkPtr MLFDataDeserializer::GetChunk(ChunkIdType chunkId)
 {
-    UNUSED(chunkId);
-    assert(chunkId == 0);
-    return make_shared<MLFChunk>(this);
-};
-
-// Sparse labels for an utterance.
-template <class ElemType>
-struct MLFSequenceData : SparseSequenceData
-{
-    vector<ElemType> m_values;
-    unique_ptr<IndexType[]> m_indicesPtr;
-
-    MLFSequenceData(size_t numberOfSamples) :
-        m_values(numberOfSamples, 1),
-        m_indicesPtr(new IndexType[numberOfSamples])
-    {
-        if (numberOfSamples > numeric_limits<IndexType>::max())
-        {
-            RuntimeError("Number of samples in an MLFSequence (%" PRIu64 ") "
-                "exceeds the maximum allowed value (%" PRIu64 ")\n",
-                numberOfSamples, (size_t)numeric_limits<IndexType>::max());
-        }
-
-        m_nnzCounts.resize(numberOfSamples, static_cast<IndexType>(1));
-        m_numberOfSamples = (uint32_t) numberOfSamples;
-        m_totalNnzCount = static_cast<IndexType>(numberOfSamples);
-        m_indices = m_indicesPtr.get();
-    }
-
-    MLFSequenceData(size_t numberOfSamples, const vector<size_t>& phoneBoundaries) :
-        MLFSequenceData(numberOfSamples)
-    {
-        for (auto boundary : phoneBoundaries)
-            m_values[boundary] = PHONE_BOUNDARY;
-    }
-
-    const void* GetDataBuffer() override
-    {
-        return m_values.data();
-    }
-};
-
-void MLFDataDeserializer::GetSequenceById(size_t sequenceId, vector<SequenceDataPtr>& result)
-{
+    auto chunk = m_chunks[chunkId];
+    auto& file = m_mlfFiles[m_chunkToFileIndex[chunk]];
     if (m_frameMode)
-    {
-        size_t label = m_classIds[sequenceId];
-        assert(label < m_categories.size());
-        result.push_back(m_categories[label]);
-    }
+        return make_shared<FrameChunk>(*this, *chunk, file.second, file.first, m_stateTable);
     else
-    {
-        // Packing labels for the utterance into sparse sequence.
-        size_t startFrameIndex = m_utteranceIndex[sequenceId];
-        size_t numberOfSamples = m_utteranceIndex[sequenceId + 1] - startFrameIndex;
-        SparseSequenceDataPtr s;
-        if (m_elementType == ElementType::tfloat)
-        {
-            if (m_withPhoneBoundaries)
-                s = make_shared<MLFSequenceData<float>>(numberOfSamples, m_phoneBoundaries.at(sequenceId));
-            else
-                s = make_shared<MLFSequenceData<float>>(numberOfSamples);
-        }
-        else
-        {
-            assert(m_elementType == ElementType::tdouble);
-            if (m_withPhoneBoundaries)
-                s = make_shared<MLFSequenceData<double>>(numberOfSamples, m_phoneBoundaries.at(sequenceId));
-            else
-                s = make_shared<MLFSequenceData<double>>(numberOfSamples);
-        }
-
-        for (size_t i = 0; i < numberOfSamples; i++)
-        {
-            size_t frameIndex = startFrameIndex + i;
-            size_t label = m_classIds[frameIndex];
-            s->m_indices[i] = static_cast<IndexType>(label);
-        }
-        result.push_back(s);
-    }
-}
+        return make_shared<SequenceChunk>(*this, *chunk, file.second, file.first, m_stateTable);
+};
 
 bool MLFDataDeserializer::GetSequenceDescriptionByKey(const KeyType& key, SequenceDescription& result)
 {
-
-    auto sequenceId = key.m_sequence < m_keyToSequence.size() ? m_keyToSequence[key.m_sequence] : SIZE_MAX;
-
-    if (sequenceId == SIZE_MAX)
-    {
+    if (key.m_sequence >= m_keyToSequence.size())
         return false;
-    }
 
-    result.m_chunkId = 0;
+    auto chunkAndSequence =  m_keyToSequence[key.m_sequence];
+    if (!chunkAndSequence.first)
+        return false;
+
+    auto c = std::lower_bound(
+        m_chunks.begin(),
+        m_chunks.end(),
+        chunkAndSequence.first);
+
+    if (c == m_chunks.end())
+        RuntimeError("Unexpected chunk specified.");
+
+    auto sequence = chunkAndSequence.second;
+
+    result.m_chunkId = static_cast<ChunkIdType>(c - m_chunks.begin());
     result.m_key = key;
 
     if (m_frameMode)
     {
-        size_t index = m_utteranceIndex[sequenceId] + key.m_sample;
-        result.m_indexInChunk = index;
+        result.m_indexInChunk = chunkAndSequence.first->m_firstSamples[sequence->m_indexInChunk] + key.m_sample;
         result.m_numberOfSamples = 1;
     }
     else
     {
         assert(result.m_key.m_sample == 0);
-        result.m_indexInChunk = sequenceId;
-        result.m_numberOfSamples = (uint32_t) (m_utteranceIndex[sequenceId + 1] - m_utteranceIndex[sequenceId]);
+        result.m_indexInChunk = sequence->m_indexInChunk;
+        result.m_numberOfSamples = sequence->m_numberOfSamples;
     }
     return true;
 }
