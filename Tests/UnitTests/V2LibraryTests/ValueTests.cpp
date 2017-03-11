@@ -1186,6 +1186,9 @@ BOOST_AUTO_TEST_CASE(CreateBatchOfSequencesOneHotInCPU)
 
 BOOST_AUTO_TEST_CASE(CreateSequenceSparseInCPU)
 {
+    if (!ShouldRunOnCpu())
+        return;
+
     CreateSequenceTestSprse<float>(DeviceDescriptor::CPUDevice(), false);
     CreateSequenceTestSprse<double>(DeviceDescriptor::CPUDevice(), true);
 }
@@ -1325,7 +1328,7 @@ BOOST_AUTO_TEST_CASE(CreateBatchOfSequencesOneHotInGPU)
 
 BOOST_AUTO_TEST_CASE(CreateSequenceSparseInGPU)
 {
-    if (IsGPUAvailable())
+    if (ShouldRunOnGpu())
     {
         CreateSequenceTestSprse<float>(DeviceDescriptor::GPUDevice(0), false);
         CreateSequenceTestSprse<double>(DeviceDescriptor::GPUDevice(0), true);
