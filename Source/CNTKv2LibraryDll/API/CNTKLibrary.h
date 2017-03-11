@@ -2252,9 +2252,9 @@ namespace CNTK
         /// Each sequence in batchOfSequences is a new sequence.
         /// Parameters:
         ///     sampleShape: the tensor shape of the Value.
-        ///     batchOfSequences : the data to be stored in the Value.The outer List represents a collection of sequences with variable length, and the inner List represents each individual sequence.
-        ///     device : on which device the Value should be created.
-        ///     readOnly : the Value is read-only if this flag is true.
+        ///     batchOfSequences: the data to be stored in the Value.The outer List represents a collection of sequences with variable length, and the inner List represents each individual sequence.
+        ///     device: on which device the Value should be created.
+        ///     readOnly: the Value is read-only if this flag is true.
         ///
         template <typename ElementType>
         static ValuePtr CreateBatchOfSequences(const NDShape& sampleShape, const std::vector<std::vector<ElementType>>& batchOfSequences, const DeviceDescriptor& device, bool readOnly = false)
@@ -2268,10 +2268,10 @@ namespace CNTK
         /// The number of samples in the batch is the number of elements in batch.
         /// Parameters:
         ///     ElementType: data type of the created Value object. Currently, float and double are supported.
-        ///     dimension : the size of dimension of the one-hot vector.
-        ///     batchData : the collection of indexes representing the batch of samples.
-        ///     device : on which device the Value object should be created.
-        ///     readOnly : the Value is read-only if this flag is true.
+        ///     dimension: the size of dimension of the one-hot vector.
+        ///     batchData: the collection of indexes representing the batch of samples.
+        ///     device: on which device the Value object should be created.
+        ///     readOnly: the Value is read-only if this flag is true.
         ///
         template <typename ElementType>
         CNTK_API static ValuePtr CreateBatch(size_t dimension, const std::vector<size_t>& batchData, const DeviceDescriptor& device, bool readOnly = false);
