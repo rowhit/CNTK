@@ -453,7 +453,7 @@ std::tuple<std::vector<ElementType>, std::vector<SparseIndexType>, std::vector<S
         for (size_t i = 1; i <= numMatrixCols; ++i)
         {
             int numValuesInCurrentCol = 0;
-            if (i == colHavingNonZeroValue)
+            if (i == colHavingNonZeroValue + 1)
             {
                 numValuesInCurrentCol = uniformDistribution(randomG);
             }
