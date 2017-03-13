@@ -1297,7 +1297,7 @@
     //
     public void CopyVariableValueTo(Variable outputVariable, System.Collections.Generic.List<System.Collections.Generic.List<uint>> sequences)
     {
-        if (sampleVariable.Shape[0] != outputVariable.Shape.TotalSize)
+        if (outputVariable.Shape[0] != outputVariable.Shape.TotalSize)
         {
             throw new System.ArgumentException("The sample variable's leading axis dimensionality must equal to the total size of the shape for sparse data");
         }
