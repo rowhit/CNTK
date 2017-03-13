@@ -444,14 +444,19 @@ std::tuple<std::vector<ElementType>, std::vector<SparseIndexType>, std::vector<S
     }
     if (numNonZeroValues == 0)
     {
-        // The uniform distribution does not generate any non-zero values, force to create 1 non-zero value for each col.
-        std::uniform_int_distribution<int> numValuesDistributionNonZero(1, static_cast<int>(numMatrixRows));
+        // The uniform distribution does not generate any non-zero values, force to have non-zero values at 1 column.
+        int colHavingNonZeroValue = rand() % numMatrixCols;
+        std::uniform_int_distribution<int> uniformDistribution(1, static_cast<int>(numMatrixRows));
 
         colsStarts[0] = 0;
         numNonZeroValues = 0;
         for (size_t i = 1; i <= numMatrixCols; ++i)
         {
-            int numValuesInCurrentCol = numValuesDistributionNonZero(randomG);
+            int numValuesInCurrentCol = 0;
+            if (i == colHavingNonZeroValue)
+            {
+                numValuesInCurrentCol = uniformDistribution(randomG);
+            }
             numNonZeroValues += numValuesInCurrentCol;
             colsStarts[i] = colsStarts[i - 1] + numValuesInCurrentCol;
         }
