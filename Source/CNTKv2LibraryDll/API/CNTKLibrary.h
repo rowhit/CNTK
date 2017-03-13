@@ -2198,7 +2198,7 @@ namespace CNTK
         /// The sequenceStartFlag specifies wehther this sequence is a new sequence or continuation of a previous sequence at the same index in the sequences list from a previous call to this method.The sequence length is the number of elements in sequence divided by the size of shape.
         /// (A runtime error occurs if the remainder is not zero).
         /// Parameters:
-        ///     shape: the tensor shape of the Value.
+        ///     sampleShape: the tensor shape of the Value.
         ///     sequenceData: the data to be contained in the Value.
         ///     sequenceStartFlag: true indicates that it is a new sequence. false means a continuation of a previous sequence.
         ///     device: on which device the Value object should be created.
@@ -2232,7 +2232,7 @@ namespace CNTK
         /// (A runtime error occurs if the remainder is not zero).
         /// Parameters:
         ///     sampleShape: the tensor shape of the Value.
-        ///     batchOfSequences: the data to be stored in the Value.The outer List represents a collection of sequences with variable length, and the inner List represents each individual sequence.
+        ///     batchOfSequences: the data to be stored in the Value.The outer vector represents a collection of sequences with variable length, and the inner vector represents each individual sequence.
         ///     sequenceStartFlags: A collection of boolean value. Each element represent whether the correspoinding sequence in batchOfSequences is a new sequence (in case of true) or a continuation of a previous sequence (in case of false).
         ///     device: on which device the Value should be created.
         ///     readOnly: the Value is read-only if this flag is true.
@@ -2252,7 +2252,7 @@ namespace CNTK
         /// Each sequence in batchOfSequences is a new sequence.
         /// Parameters:
         ///     sampleShape: the tensor shape of the Value.
-        ///     batchOfSequences: the data to be stored in the Value.The outer List represents a collection of sequences with variable length, and the inner List represents each individual sequence.
+        ///     batchOfSequences: the data to be stored in the Value.The outer vector represents a collection of sequences with variable length, and the inner vector represents each individual sequence.
         ///     device: on which device the Value should be created.
         ///     readOnly: the Value is read-only if this flag is true.
         ///
@@ -2318,7 +2318,7 @@ namespace CNTK
         /// Parameters:
         ///     ElementType: data type of the created Value object.Currently, float and double are supported.
         ///     dimension: the size of dimension of the one-hot vector.
-        ///     batchOfSequences: the collection of indexes representing sequences of samples.The outer List represents a collection of sequences with variable length, and the inner List represents each individual sequence.
+        ///     batchOfSequences: the collection of indexes representing sequences of samples.The outer vector represents a collection of sequences with variable length, and the inner vector represents each individual sequence.
         ///     sequenceStartFlags: A collection of boolean value.Each element represent whether the correspoinding sequence in batchOfSequences is a new sequence(in case of true) or a continuation of a previous sequence(in case of false).
         ///     device: on which device the Value object should be created.
         ///     readOnly: the Value is read-only if this flag is true.
@@ -2338,7 +2338,7 @@ namespace CNTK
         /// Parameters:
         ///     ElementType: data type of the created Value object.Currently, float and double are supported.
         ///     dimension: the size of dimension of the one-hot vector.
-        ///     batchOfSequences: the collection of indexes representing sequences of samples.The outer List represents a collection of sequences with variable length, and the inner List represents each individual sequence.
+        ///     batchOfSequences: the collection of indexes representing sequences of samples.The outer vector represents a collection of sequences with variable length, and the inner vector represents each individual sequence.
         ///     device: on which device the Value object should be created.
         ///     readOnly: the Value is read-only if this flag is true.
         ///
