@@ -17,8 +17,7 @@ fi
 
 if [ "$OS" == "Windows_NT" ]; then
 
-  # Copy pretrained models and data
-
+  # Set the build type for windows machines
   if [ "$TEST_FLAVOR" == "release" ]; then
     TEST_STRING="Release"
   else
@@ -38,7 +37,6 @@ if [ "$OS" == "Windows_NT" ]; then
   cd $TEST_BIN_DIR
   ../../bindings/java/Swig/run-java-test.cmd $SOURCE_DIR $DLL_DIR || exit $?
 
-  # Check whether any exceptions encountered
   exit 0
 
 else
