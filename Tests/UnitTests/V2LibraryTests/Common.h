@@ -430,15 +430,31 @@ std::tuple<std::vector<ElementType>, std::vector<SparseIndexType>, std::vector<S
 {
     auto numMatrixRows = dimension;
     auto numMatrixCols = sequenceLength;
-
     std::vector<SparseIndexType> colsStarts(numMatrixCols + 1);
+
+    std::default_random_engine randomG;
+    std::uniform_int_distribution<int> numValuesDistribution(0, static_cast<int>(numMatrixRows));
     colsStarts[0] = 0;
     int numNonZeroValues = 0;
     for (size_t i = 1; i <= numMatrixCols; ++i)
     {
-        int numValuesInCurrentCol = (rand() % numMatrixRows) + (rand() % 1);
+        int numValuesInCurrentCol = numValuesDistribution(randomG);
         numNonZeroValues += numValuesInCurrentCol;
         colsStarts[i] = colsStarts[i - 1] + numValuesInCurrentCol;
+    }
+    if (numNonZeroValues == 0)
+    {
+        // The uniform distribution does not generate any non-zero values, force to create 1 non-zero value for each col.
+        std::uniform_int_distribution<int> numValuesDistributionNonZero(1, static_cast<int>(numMatrixRows));
+
+        colsStarts[0] = 0;
+        numNonZeroValues = 0;
+        for (size_t i = 1; i <= numMatrixCols; ++i)
+        {
+            int numValuesInCurrentCol = numValuesDistributionNonZero(randomG);
+            numNonZeroValues += numValuesInCurrentCol;
+            colsStarts[i] = colsStarts[i - 1] + numValuesInCurrentCol;
+        }
     }
 
     // Now fill the actual values
