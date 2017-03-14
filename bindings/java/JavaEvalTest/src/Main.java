@@ -31,7 +31,7 @@ public class Main {
         int imageChannels = inputShape.getDimensions().get(2).intValue();
         int imageSize = ((int) inputShape.GetTotalSize());
 
-        System.out.print("EvaluateSingleImage");
+        System.out.println("EvaluateSingleImage");
 
         // Image preprocessing to match input requirements of the model.
         BufferedImage bmp = ImageIO.read(new File(dataPath + "00000.png"));
