@@ -371,7 +371,7 @@ class Function(cntk_py.Function):
             # and then looks it up by name, as that will fail although both instances are identical.
             from cntk.logging.graph import find_by_name
             root = self.block_root if self.is_block else self
-            item = typemap(find_by_name)(root, name)
+            item = typemap(find_by_name)(root, name, dive_into_blocks=True)
             if item:
                 return item
 
@@ -925,7 +925,7 @@ class Function(cntk_py.Function):
         return super(Function, self).replace_placeholder(substitution)
 
     @typemap
-    def find_all_with_name(self, name):
+    def find_all_with_name(self, name, dive_into_blocks=False):
         '''
         Returns a list of primitive function with ``name`` in the graph
         starting from this node. Throws an exception if ``name`` occurs
@@ -943,6 +943,8 @@ class Function(cntk_py.Function):
 
         Args:
             name (str): names to look for
+            dive_into_blocks (bool, default False): whether the search should look
+             into block functions
 
         Returns:
             list of :class:`Function` objects matching ``name``
@@ -951,11 +953,11 @@ class Function(cntk_py.Function):
             :func:`find_by_name`
         '''
         from cntk.logging import graph
-        return graph.find_all_with_name(self, name)
+        return graph.find_all_with_name(self, name, dive_into_blocks)
 
     # TODO have a better name for combine() in this case
     @typemap
-    def find_by_name(self, name):
+    def find_by_name(self, name, dive_into_blocks=False):
         '''
         Returns a primitive function with ``name`` in the graph starting from
         this node. Throws an exception if ``name`` occurs multiple times. If
@@ -980,6 +982,8 @@ class Function(cntk_py.Function):
 
         Args:
             name (str): names to look for
+            dive_into_blocks (bool, default False): whether the search should look
+             into block functions
 
         Returns:
             :class:`Function` object matching ``name``
@@ -988,7 +992,7 @@ class Function(cntk_py.Function):
             :func:`find_all_with_name`
         '''
         from cntk.logging import graph
-        return graph.find_by_name(self, name)
+        return graph.find_by_name(self, name, dive_into_blocks)
 
     @typemap
     def save(self, filename):
